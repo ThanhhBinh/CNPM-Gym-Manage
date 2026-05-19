@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # MySQL 8.0 Database
+  # ===========================================
+  mysql:
+    image: mysql:8.0
+    container_name: gym_mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_DATABASE:-gym_manage}
+      MYSQL_USER: ${DB_USERNAME:-gym_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-gym_password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - gym_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Laravel Backend (PHP-FPM + Nginx)
+  # ===========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gym_backend
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${APP_KEY:-base64:placeholder}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-gym_manage}
+      DB_USERNAME: ${DB_USERNAME:-gym_user}
+      DB_PASSWORD: ${DB_PASSWORD:-gym_password}
+    volumes:
+      - ./backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - gym_network
+
+  # ===========================================
+  # React Frontend (Vite Dev Server)
+  # ===========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gym_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - gym_network
+
+volumes:
+  mysql_data:
+    driver: local
+  backend_vendor:
+    driver: local
+  frontend_node_modules:
+    driver: local
+
+networks:
+  gym_network:
+    driver: bridge

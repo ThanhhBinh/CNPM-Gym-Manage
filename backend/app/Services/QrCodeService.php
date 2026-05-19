@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Services;
+
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use chillerlan\QRCode\QRCode;
+use chillerlan\QRCode\QROptions;
+
+class QrCodeService
+{
+    /**
+     * Generate a JWT token for a member.
+     */
+    public static function generateToken($memberId)
+    {
+        $payload = [
+            'iss' => config('app.url'),
+            'iat' => time(),
+            'exp' => time() + (365 * 24 * 60 * 60), // Valid for 1 year
+            'member_id' => $memberId,
+        ];
+
+        return JWT::encode($payload, config('app.key'), 'HS256');
+    }
+
+    /**
+     * Decode and validate a JWT token.
+     */
+    public static function validateToken($token)
+    {
+        try {
+            $decoded = JWT::decode($token, new Key(config('app.key'), 'HS256'));
+            return $decoded->member_id;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Generate QR code image (base64) from token.
+     */
+    public static function generateQrImage($token)
+    {
+        $options = new QROptions([
+            'version'    => 5,
+            'outputType' => QRCode::OUTPUT_IMAGE_PNG,
+            'eccLevel'   => QRCode::ECC_L,
+            'scale'      => 5,
+            'imageBase64' => true,
+        ]);
+
+        return (new QRCode($options))->render($token);
+    }
+}
