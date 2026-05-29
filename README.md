@@ -3,6 +3,7 @@
 Dự án MVP Quản lý phòng tập Gym được xây dựng trên kiến trúc Docker hóa đầy đủ với Backend Laravel 11 và Frontend React (Vite + TypeScript + Tailwind CSS 4).
 
 ## 🚀 Tính Năng Chính
+
 - **Quản lý hội viên (Members)**: CRUD hội viên, tự động tạo QR Code kiểm soát check-in.
 - **Quản lý gói tập (Packages)**: Định nghĩa gói tháng, quý, năm, PT, có tính năng nhân bản gói.
 - **Đăng ký & Check-in**:
@@ -20,7 +21,9 @@ Dự án MVP Quản lý phòng tập Gym được xây dựng trên kiến trúc
 ---
 
 ## 🛠️ Yêu Cầu Hệ Thống
+
 Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đặt các công cụ sau:
+
 1. **Docker Desktop** (hoặc Docker Engine & Docker Compose).
 2. **Git** (để quản lý mã nguồn).
 
@@ -31,33 +34,43 @@ Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đ
 Làm theo các bước dưới đây để khởi chạy dự án thông qua Docker:
 
 ### Bước 1: Clone dự án và truy cập thư mục
+
 ```bash
 git clone <repository_url>
 cd CNPM-Gym-Manage
 ```
 
 ### Bước 2: Tạo tệp môi trường `.env`
+
 Sao chép tệp cấu hình mẫu cho Backend:
+
 ```bash
 cp backend/.env.example backend/.env
 ```
 
 ### Bước 3: Build và khởi động các Container
+
 Sử dụng Docker Compose để khởi chạy dịch vụ (MySQL, Laravel, React):
+
 ```bash
 docker compose up -d --build
 ```
+
 > **Lưu ý**: Lệnh này sẽ mất vài phút trong lần chạy đầu tiên để cài đặt các package Composer và NPM.
 
 ### Bước 4: Chạy Migrations và Seed Dữ liệu
+
 Cài đặt cấu trúc cơ sở dữ liệu và nạp dữ liệu mẫu (Tài khoản admin, lễ tân, gói tập mẫu):
+
 ```bash
 # Thực hiện migrate và seed dữ liệu vào database MySQL
 docker exec -it gym_backend php artisan migrate --seed
 ```
 
 ### Bước 5: Truy cập ứng dụng
+
 Sau khi các bước trên hoàn tất, bạn có thể truy cập hệ thống qua trình duyệt:
+
 - **Frontend App**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:8000](http://localhost:8000)
 
@@ -67,16 +80,17 @@ Sau khi các bước trên hoàn tất, bạn có thể truy cập hệ thống 
 
 Hệ thống đã được nạp sẵn 2 tài khoản test với các phân quyền khác nhau:
 
-| Vai trò (Role) | Số điện thoại (Phone) | Mật khẩu (Password) | Quyền hạn chính |
-| :--- | :--- | :--- | :--- |
-| **Quản trị viên (Admin)** | `0901234567` | `password` | Quản lý toàn bộ, khóa hội viên, nhân bản gói tập, hoàn tiền hóa đơn. |
-| **Lễ tân (Receptionist)** | `0909876543` | `password` | Đăng ký hội viên, mua/gia hạn gói, quét check-in, xem hóa đơn. |
+| Vai trò (Role)            | Số điện thoại (Phone) | Mật khẩu (Password) | Quyền hạn chính                                                      |
+| :------------------------ | :-------------------- | :------------------ | :------------------------------------------------------------------- |
+| **Quản trị viên (Admin)** | `0901234567`          | `password`          | Quản lý toàn bộ, khóa hội viên, nhân bản gói tập, hoàn tiền hóa đơn. |
+| **Lễ tân (Receptionist)** | `0909876543`          | `password`          | Đăng ký hội viên, mua/gia hạn gói, quét check-in, xem hóa đơn.       |
 
 ---
 
 ## 🧪 Chạy Unit & Feature Tests
 
 Để chạy toàn bộ các bài kiểm thử tự động của Laravel (Sử dụng SQLite in-memory độc lập):
+
 ```bash
 docker exec -it gym_backend php artisan test
 ```
@@ -84,6 +98,13 @@ docker exec -it gym_backend php artisan test
 ---
 
 ## 📂 Cấu Trúc Thư Mục Dự Án
+
 - `backend/`: Mã nguồn Laravel 11 (API, Models, Migrations, Seeders, Feature Tests).
 - `frontend/`: Mã nguồn React (Vite, TypeScript, Tailwind CSS 4).
 - `docker-compose.yml`: Cấu hình Docker Compose để liên kết các dịch vụ.
+
+để dừng dư an
+
+```bash
+docker compose down
+```

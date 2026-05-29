@@ -9,12 +9,16 @@ use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\MemberPackageController;
 use App\Http\Controllers\Api\CheckInController;
+use App\Http\Controllers\Api\DashboardController;
 
 Route::post('/auth/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+    
+    // Dashboard Stats
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
     
     // Members
     Route::apiResource('members', MemberController::class);
