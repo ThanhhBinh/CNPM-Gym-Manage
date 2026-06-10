@@ -6,6 +6,9 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
+use chillerlan\QRCode\Common\EccLevel;
+use chillerlan\QRCode\Common\Version;
+use chillerlan\QRCode\Output\QRGdImagePNG;
 
 class QrCodeService
 {
@@ -43,11 +46,11 @@ class QrCodeService
     public static function generateQrImage($token)
     {
         $options = new QROptions([
-            'version'    => 5,
-            'outputType' => QRCode::OUTPUT_IMAGE_PNG,
-            'eccLevel'   => QRCode::ECC_L,
-            'scale'      => 5,
-            'imageBase64' => true,
+            'version'         => Version::AUTO,
+            'outputInterface' => QRGdImagePNG::class,
+            'eccLevel'        => EccLevel::L,
+            'scale'           => 5,
+            'outputBase64'    => true,
         ]);
 
         return (new QRCode($options))->render($token);

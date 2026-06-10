@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import DashboardWidget from '../components/ui/DashboardWidget';
+import { PageHeader } from '../components/ui/PageHeader';
+import { LineChart, BarChart, DonutChart } from '../components/charts';
+import { formatPeriodLabel, formatShortMoney } from '../utils/chartFormat';
 
 interface StatItem {
     title: string;
     value: string;
     change: string | null;
-    icon: string;
+    icon: React.ReactNode;
     color: string;
+    bgLight: string;
 }
 
 interface ActivityItem {
@@ -21,10 +28,43 @@ interface PopularPackageItem {
     percent: number;
 }
 
+interface TrendItem {
+    label: string;
+    month: string;
+    revenue?: number;
+    count?: number;
+}
+
+interface PaymentBreakdownItem {
+    method: string;
+    label: string;
+    count: number;
+    total: number;
+}
+
+interface RecentCheckIn {
+    id: number;
+    member_name: string;
+    member_code: string;
+    method: string;
+    checked_in_at: string;
+}
+
+const PAYMENT_COLORS: Record<string, string> = {
+    cash: '#f59e0b',
+    transfer: '#4f46e5',
+    card: '#14b8a6',
+};
+
 const Dashboard = () => {
+    const { user } = useAuth();
     const [stats, setStats] = useState<Record<string, { value: string; change: string | null }>>({});
     const [checkinActivity, setCheckinActivity] = useState<ActivityItem[]>([]);
     const [popularPackages, setPopularPackages] = useState<PopularPackageItem[]>([]);
+    const [revenueTrend, setRevenueTrend] = useState<TrendItem[]>([]);
+    const [memberGrowth, setMemberGrowth] = useState<TrendItem[]>([]);
+    const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentBreakdownItem[]>([]);
+    const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchStats = async () => {
@@ -33,6 +73,10 @@ const Dashboard = () => {
             setStats(data.stats);
             setCheckinActivity(data.checkin_activity);
             setPopularPackages(data.popular_packages);
+            setRevenueTrend(data.revenue_trend || []);
+            setMemberGrowth(data.member_growth || []);
+            setPaymentBreakdown(data.payment_breakdown || []);
+            setRecentCheckIns(data.recent_checkins || []);
         } catch (error) {
             console.error('Error fetching dashboard stats', error);
         } finally {
@@ -47,134 +91,254 @@ const Dashboard = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-96">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
             </div>
         );
     }
 
+    const todayLabel = new Date().toLocaleDateString('vi-VN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
+
     const statList: StatItem[] = [
-        { 
-            title: 'Hội viên Hoạt động', 
-            value: stats.active_members?.value || '0', 
-            change: stats.active_members?.change || null, 
-            icon: '👥', 
-            color: 'from-blue-500 to-blue-600' 
+        {
+            title: 'Hội viên Hoạt động',
+            value: stats.active_members?.value || '0',
+            change: stats.active_members?.change || null,
+            icon: (
+                <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+            ),
+            color: 'border-indigo-100',
+            bgLight: 'bg-indigo-50',
         },
-        { 
-            title: 'Doanh thu Tháng', 
-            value: stats.monthly_revenue?.value || '0đ', 
-            change: stats.monthly_revenue?.change || null, 
-            icon: '💰', 
-            color: 'from-emerald-500 to-emerald-600' 
+        {
+            title: 'Doanh thu Tháng',
+            value: stats.monthly_revenue?.value || '0đ',
+            change: stats.monthly_revenue?.change || null,
+            icon: (
+                <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 16c1.657 0 3-.895 3-2s-1.343-2-3-2-3-.895-3-2 1.343-2 3-2m0-8V7m0 1v8m0 0v1" />
+                </svg>
+            ),
+            color: 'border-emerald-100',
+            bgLight: 'bg-emerald-50',
         },
-        { 
-            title: 'Check-in Hôm nay', 
-            value: stats.today_checkins?.value || '0', 
-            change: stats.today_checkins?.change || null, 
-            icon: '📷', 
-            color: 'from-purple-500 to-purple-600' 
+        {
+            title: 'Check-in Hôm nay',
+            value: stats.today_checkins?.value || '0',
+            change: stats.today_checkins?.change || null,
+            icon: (
+                <svg className="w-6 h-6 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2v4a2 2 0 01-2 2H9a2 2 0 01-2-2V9a2 2 0 012-2m6 0V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2m6 0h-6" />
+                </svg>
+            ),
+            color: 'border-violet-100',
+            bgLight: 'bg-violet-50',
         },
-        { 
-            title: 'Gói tập sắp hết hạn', 
-            value: stats.expiring_packages?.value || '0', 
-            change: null, 
-            icon: '⚠️', 
-            color: 'from-orange-500 to-orange-600' 
+        {
+            title: 'Gói tập sắp hết hạn',
+            value: stats.expiring_packages?.value || '0',
+            change: null,
+            icon: (
+                <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            ),
+            color: 'border-amber-100',
+            bgLight: 'bg-amber-50',
         },
     ];
 
-    // Find the max count for rendering heights proportionally
-    const maxCount = Math.max(...checkinActivity.map(c => c.count), 1);
+    const paymentSegments = paymentBreakdown.map((item) => ({
+        label: item.label,
+        value: item.total,
+        color: PAYMENT_COLORS[item.method] || '#94a3b8',
+    }));
 
     return (
-        <div className="space-y-6">
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="space-y-6 font-sans">
+            <PageHeader
+                badge="Dashboard"
+                title={`Xin chào, ${user?.name || 'Admin'}`}
+                description={`Tổng quan hoạt động phòng gym — ${todayLabel}`}
+                actions={
+                    <>
+                        <Link
+                            to="/check-in"
+                            className="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+                        >
+                            Check-in
+                        </Link>
+                        <Link
+                            to="/members"
+                            className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
+                        >
+                            + Hội viên
+                        </Link>
+                    </>
+                }
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {statList.map((stat, i) => (
-                    <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
-                        <div className={`absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br ${stat.color} rounded-full opacity-10 group-hover:scale-150 transition-transform duration-500`}></div>
-                        
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <p className="text-sm font-medium text-slate-500 mb-1">{stat.title}</p>
-                                <h3 className="text-3xl font-bold text-slate-800">{stat.value}</h3>
-                            </div>
-                            <div className="text-2xl">{stat.icon}</div>
-                        </div>
-                        
-                        {stat.change !== null ? (
-                            <div className="flex items-center gap-2">
-                                <span className={`text-sm font-semibold flex items-center gap-0.5 ${
-                                    stat.change.startsWith('+') ? 'text-emerald-500' : 'text-red-500'
-                                }`}>
-                                    {stat.change.startsWith('+') ? '↑' : '↓'} {stat.change}
-                                </span>
-                                <span className="text-sm text-slate-400">so với tháng trước</span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-slate-400">cần gia hạn trong 7 ngày tới</span>
-                            </div>
-                        )}
-                    </div>
+                    <DashboardWidget key={i} {...stat} />
                 ))}
             </div>
 
-            {/* Bottom charts & lists */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Checkin chart */}
-                <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
-                    <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
-                        Hoạt động Check-in (7 ngày qua)
-                    </h3>
-                    <div className="h-64 flex items-end gap-3 px-2 flex-1">
-                        {checkinActivity.map((activity, i) => {
-                            const percentHeight = Math.max(5, (activity.count / maxCount) * 100);
-                            return (
-                                <div key={i} className="flex-1 flex flex-col justify-end group h-full">
-                                    <div 
-                                        className="w-full bg-blue-100 hover:bg-gradient-to-t hover:from-blue-500 hover:to-indigo-500 rounded-t-lg transition-all duration-300 relative flex justify-center" 
-                                        style={{ height: `${percentHeight}%` }}
-                                    >
-                                        {/* Popover badge on hover */}
-                                        <div className="opacity-0 group-hover:opacity-100 absolute -top-9 bg-slate-800 text-white text-xs font-bold px-2.5 py-1 rounded-lg transition-opacity shadow-md pointer-events-none whitespace-nowrap z-10">
-                                            {activity.count} lượt
-                                        </div>
-                                    </div>
-                                    <div className="text-center mt-3">
-                                        <p className="text-xs font-semibold text-slate-700">{activity.day}</p>
-                                        <p className="text-[10px] text-slate-400 mt-0.5">{activity.date}</p>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                <div className="lg:col-span-2 panel p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-md font-bold text-slate-800 dark:text-slate-100">Doanh thu 6 tháng</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">Biểu đồ xu hướng doanh thu từ thanh toán</p>
+                        </div>
+                        <Link to="/payments" className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
+                            Chi tiết →
+                        </Link>
                     </div>
+                    <LineChart
+                        data={revenueTrend.map((item) => ({
+                            label: item.month ? formatPeriodLabel(item.month) : item.label,
+                            value: item.revenue || 0,
+                        }))}
+                        height={200}
+                        color="#10b981"
+                        formatValue={formatShortMoney}
+                        emptyMessage="Chưa có doanh thu trong 6 tháng qua"
+                    />
                 </div>
 
-                {/* Popular Packages */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
-                    <h3 className="text-lg font-bold text-slate-800 mb-6">Gói tập phổ biến</h3>
-                    <div className="space-y-6 flex-1 flex flex-col justify-center">
+                <div className="panel p-6">
+                    <h3 className="text-md font-bold text-slate-800">Phương thức thanh toán</h3>
+                    <p className="text-xs text-slate-400 mt-0.5 mb-4">Tháng hiện tại</p>
+                    <DonutChart
+                        segments={paymentSegments}
+                        formatValue={formatShortMoney}
+                        emptyMessage="Chưa có giao dịch tháng này"
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 panel p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-md font-bold text-slate-800 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                Check-in 7 ngày qua
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-0.5">Số lượt check-in mỗi ngày</p>
+                        </div>
+                        <Link to="/schedule" className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
+                            Lịch tập →
+                        </Link>
+                    </div>
+                    <BarChart
+                        data={checkinActivity.map((a) => ({
+                            label: a.day,
+                            sublabel: a.date,
+                            value: a.count,
+                        }))}
+                        height={200}
+                        formatValue={(v) => String(v)}
+                        color="#4f46e5"
+                        emptyMessage="Chưa có check-in trong 7 ngày qua"
+                    />
+                </div>
+
+                <div className="panel p-6">
+                    <h3 className="text-md font-bold text-slate-800 mb-1">Hội viên mới</h3>
+                    <p className="text-xs text-slate-400 mb-4">Đăng ký theo tháng (6 tháng)</p>
+                    <BarChart
+                        data={memberGrowth.map((m) => ({
+                            label: m.month ? formatPeriodLabel(m.month) : m.label,
+                            value: m.count || 0,
+                        }))}
+                        height={200}
+                        formatValue={(v) => String(v)}
+                        color="#8b5cf6"
+                        emptyMessage="Chưa có hội viên mới"
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="panel p-6">
+                    <h3 className="text-md font-bold text-slate-800 mb-4">Gói tập phổ biến</h3>
+                    <div className="space-y-5">
                         {popularPackages.length === 0 ? (
-                            <p className="text-center text-slate-400 text-sm py-12">Chưa có hội viên nào đăng ký gói tập</p>
+                            <p className="text-center text-slate-400 text-sm py-8">Chưa có hội viên đăng ký gói</p>
                         ) : (
                             popularPackages.map((pkg, i) => (
                                 <div key={i} className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="font-semibold text-slate-700">{pkg.name}</span>
-                                        <span className="text-slate-500 font-mono text-xs">{pkg.users} lượt đăng ký</span>
+                                    <div className="flex justify-between items-center text-sm font-semibold">
+                                        <span className="text-slate-700 truncate">{pkg.name}</span>
+                                        <span className="text-slate-400 text-xs font-mono shrink-0">{pkg.users} HV</span>
                                     </div>
-                                    <div className="h-3.5 w-full bg-slate-100 rounded-full overflow-hidden p-[2px]">
-                                        <div 
-                                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500" 
-                                            style={{ width: `${Math.max(10, pkg.percent)}%` }}
-                                        ></div>
+                                    <div className="h-2.5 w-full bg-slate-50 border border-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                                            style={{ width: `${Math.max(5, pkg.percent)}%` }}
+                                        />
                                     </div>
                                 </div>
                             ))
                         )}
                     </div>
+                </div>
+
+                <div className="lg:col-span-2 panel p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-md font-bold text-slate-800 dark:text-slate-100">Check-in gần đây</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">8 lượt check-in mới nhất</p>
+                        </div>
+                        <Link to="/check-in" className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
+                            Xem tất cả →
+                        </Link>
+                    </div>
+                    {recentCheckIns.length === 0 ? (
+                        <p className="text-center text-slate-400 text-sm py-10">Chưa có check-in nào</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                        <th className="pb-3 pr-4">Hội viên</th>
+                                        <th className="pb-3 pr-4">Mã HV</th>
+                                        <th className="pb-3 pr-4">Phương thức</th>
+                                        <th className="pb-3 text-right">Thời gian</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {recentCheckIns.map((checkIn) => (
+                                        <tr key={checkIn.id} className="hover:bg-slate-50/50">
+                                            <td className="py-3 pr-4 font-semibold text-slate-800">{checkIn.member_name}</td>
+                                            <td className="py-3 pr-4 font-mono text-xs text-slate-500">{checkIn.member_code}</td>
+                                            <td className="py-3 pr-4">
+                                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-600">
+                                                    {checkIn.method === 'qr_scan' ? 'QR' : 'Thủ công'}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 text-right text-slate-500 font-medium">
+                                                {new Date(checkIn.checked_in_at).toLocaleString('vi-VN', {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                    day: '2-digit',
+                                                    month: '2-digit',
+                                                })}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

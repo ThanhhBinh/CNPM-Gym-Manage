@@ -9,6 +9,7 @@ use App\Models\CheckIn;
 use App\Services\AuditLogService;
 use App\Services\QrCodeService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class CheckInController extends Controller
 {
@@ -110,11 +111,41 @@ class CheckInController extends Controller
     public function index(Request $request)
     {
         $query = CheckIn::with(['member', 'verifier'])->orderBy('checked_in_at', 'desc');
-        
+
         if ($request->has('date')) {
             $query->whereDate('checked_in_at', $request->date);
         }
 
-        return response()->json($query->paginate(20));
+        $perPage = min((int) $request->get('per_page', 20), 100);
+
+        return response()->json($query->paginate($perPage));
+    }
+
+    public function calendar(Request $request)
+    {
+        $month = $request->get('month', Carbon::now()->format('Y-m'));
+
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            return response()->json(['message' => 'Định dạng tháng không hợp lệ (YYYY-MM)'], 400);
+        }
+
+        $start = Carbon::parse($month . '-01')->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $dates = CheckIn::whereBetween('checked_in_at', [$start, $end])
+            ->select(DB::raw('DATE(checked_in_at) as date'), DB::raw('count(*) as count'))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->map(fn ($row) => [
+                'date' => $row->date,
+                'count' => (int) $row->count,
+            ]);
+
+        return response()->json([
+            'month' => $month,
+            'dates' => $dates,
+            'total_checkins' => $dates->sum('count'),
+        ]);
     }
 }

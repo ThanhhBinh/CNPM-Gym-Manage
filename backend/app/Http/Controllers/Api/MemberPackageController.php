@@ -19,8 +19,17 @@ class MemberPackageController extends Controller
         $validated = $request->validate([
             'package_id' => 'required|exists:packages,id',
             'start_date' => 'required|date',
-            'payment_method' => 'required|in:cash,transfer,card',
+            'payment_method' => 'required|in:cash,transfer',
             'discount' => 'nullable|numeric|min:0',
+        ], [
+            'package_id.required' => 'Vui lòng chọn gói tập.',
+            'package_id.exists' => 'Gói tập được chọn không tồn tại.',
+            'start_date.required' => 'Ngày bắt đầu là bắt buộc.',
+            'start_date.date' => 'Ngày bắt đầu không đúng định dạng ngày.',
+            'payment_method.required' => 'Phương thức thanh toán là bắt buộc.',
+            'payment_method.in' => 'Phương thức thanh toán không hợp lệ.',
+            'discount.numeric' => 'Số tiền giảm giá phải là số.',
+            'discount.min' => 'Số tiền giảm giá không được nhỏ hơn 0.',
         ]);
 
         $package = Package::findOrFail($validated['package_id']);
@@ -77,8 +86,13 @@ class MemberPackageController extends Controller
     public function renew(Request $request, MemberPackage $memberPackage)
     {
         $validated = $request->validate([
-            'payment_method' => 'required|in:cash,transfer,card',
+            'payment_method' => 'required|in:cash,transfer',
             'discount' => 'nullable|numeric|min:0',
+        ], [
+            'payment_method.required' => 'Phương thức thanh toán là bắt buộc.',
+            'payment_method.in' => 'Phương thức thanh toán không hợp lệ.',
+            'discount.numeric' => 'Số tiền giảm giá phải là số.',
+            'discount.min' => 'Số tiền giảm giá không được nhỏ hơn 0.',
         ]);
 
         $package = $memberPackage->package;

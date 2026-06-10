@@ -39,6 +39,19 @@ class PackageController extends Controller
             'benefits' => 'nullable|string',
             'description' => 'nullable|string',
             'status' => 'required|in:active,inactive',
+        ], [
+            'name.required' => 'Tên gói tập là bắt buộc.',
+            'name.unique' => 'Tên gói tập này đã tồn tại.',
+            'type.required' => 'Loại gói tập là bắt buộc.',
+            'type.in' => 'Loại gói tập không hợp lệ.',
+            'duration_days.required' => 'Số ngày hiệu lực là bắt buộc.',
+            'duration_days.integer' => 'Số ngày hiệu lực phải là số nguyên.',
+            'duration_days.min' => 'Số ngày hiệu lực tối thiểu là 1.',
+            'price.required' => 'Giá tiền là bắt buộc.',
+            'price.numeric' => 'Giá tiền phải là số.',
+            'price.min' => 'Giá tiền không được nhỏ hơn 0.',
+            'status.required' => 'Trạng thái là bắt buộc.',
+            'status.in' => 'Trạng thái không hợp lệ.',
         ]);
 
         $package = Package::create($validated);
@@ -71,6 +84,19 @@ class PackageController extends Controller
             'benefits' => 'nullable|string',
             'description' => 'nullable|string',
             'status' => 'required|in:active,inactive',
+        ], [
+            'name.required' => 'Tên gói tập là bắt buộc.',
+            'name.unique' => 'Tên gói tập này đã tồn tại.',
+            'type.required' => 'Loại gói tập là bắt buộc.',
+            'type.in' => 'Loại gói tập không hợp lệ.',
+            'duration_days.required' => 'Số ngày hiệu lực là bắt buộc.',
+            'duration_days.integer' => 'Số ngày hiệu lực phải là số nguyên.',
+            'duration_days.min' => 'Số ngày hiệu lực tối thiểu là 1.',
+            'price.required' => 'Giá tiền là bắt buộc.',
+            'price.numeric' => 'Giá tiền phải là số.',
+            'price.min' => 'Giá tiền không được nhỏ hơn 0.',
+            'status.required' => 'Trạng thái là bắt buộc.',
+            'status.in' => 'Trạng thái không hợp lệ.',
         ]);
 
         $oldData = $package->toArray();

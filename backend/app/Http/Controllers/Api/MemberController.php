@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Member;
 use Illuminate\Support\Str;
 use App\Services\AuditLogService;
+use App\Services\QrCodeService;
 
 class MemberController extends Controller
 {
@@ -39,6 +40,13 @@ class MemberController extends Controller
             'date_of_birth' => 'nullable|date',
             'address' => 'nullable|string',
             'branch' => 'nullable|string|max:100',
+        ], [
+            'full_name.required' => 'Họ và tên là bắt buộc.',
+            'phone.required' => 'Số điện thoại là bắt buộc.',
+            'phone.unique' => 'Số điện thoại này đã được đăng ký.',
+            'email.email' => 'Email không đúng định dạng.',
+            'id_card.unique' => 'Số CCCD/CMND này đã tồn tại trong hệ thống.',
+            'date_of_birth.date' => 'Ngày sinh không đúng định dạng ngày.',
         ]);
 
         $validated['member_code'] = 'GYM-' . strtoupper(Str::random(6));
@@ -74,6 +82,11 @@ class MemberController extends Controller
             'id_card' => 'nullable|string|max:20|unique:members,id_card,' . $member->id,
             'date_of_birth' => 'nullable|date',
             'address' => 'nullable|string',
+        ], [
+            'phone.unique' => 'Số điện thoại này đã được đăng ký.',
+            'email.email' => 'Email không đúng định dạng.',
+            'id_card.unique' => 'Số CCCD/CMND này đã tồn tại trong hệ thống.',
+            'date_of_birth.date' => 'Ngày sinh không đúng định dạng ngày.',
         ]);
 
         $oldData = $member->toArray();
@@ -109,6 +122,27 @@ class MemberController extends Controller
         ]);
     }
 
+    /**
+    * Return QR code image for a member (download PNG).
+    */
+    public function qr(Member $member)
+    {
+        // Ensure member has a QR token
+        if (empty($member->qr_token)) {
+            $member->qr_token = QrCodeService::generateToken($member->id);
+            $member->save();
+        }
+        $token = $member->qr_token;
+        $imageBase64 = QrCodeService::generateQrImage($token);
+        // Strip data URI prefix and decode
+        $base64 = preg_replace('#^data:image/\w+;base64,#i', '', $imageBase64);
+        $binary = base64_decode($base64);
+        return response($binary, 200)
+            ->header('Content-Type', 'image/png')
+            ->header('Content-Disposition', "attachment; filename=\"member_{$member->member_code}_qr.png\"");
+    }
+
+    // Existing unlock method remains unchanged
     public function unlock(Request $request, Member $member)
     {
         if ($request->user()->role !== 'admin') {
@@ -128,4 +162,5 @@ class MemberController extends Controller
             'member' => $member
         ]);
     }
+
 }

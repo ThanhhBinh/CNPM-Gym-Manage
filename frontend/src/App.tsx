@@ -9,6 +9,8 @@ import PackageList from './pages/Packages/PackageList';
 
 import CheckIn from './pages/CheckIn/CheckIn';
 import PaymentList from './pages/Payments/PaymentList';
+import Schedule from './pages/Schedule/Schedule';
+import Reports from './pages/Reports/Reports';
 
 const App = () => {
     return (
@@ -23,6 +25,8 @@ const App = () => {
                         <Route path="packages" element={<PackageList />} />
                         <Route path="check-in" element={<CheckIn />} />
                         <Route path="payments" element={<PaymentList />} />
+                        <Route path="schedule" element={<Schedule />} />
+                        <Route path="reports" element={<Reports />} />
                     </Route>
                     
                     <Route path="*" element={<Navigate to="/" replace />} />

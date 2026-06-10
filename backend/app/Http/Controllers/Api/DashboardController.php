@@ -102,6 +102,69 @@ class DashboardController extends Controller
             ];
         });
 
+        // 7. Revenue trend (last 6 months)
+        $revenueTrend = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = $now->copy()->subMonths($i);
+            $revenue = Payment::where('status', 'paid')
+                ->whereMonth('paid_at', $date->month)
+                ->whereYear('paid_at', $date->year)
+                ->sum('final_amount');
+
+            $revenueTrend[] = [
+                'label' => $date->locale('vi')->isoFormat('MMM'),
+                'month' => $date->format('Y-m'),
+                'revenue' => (int) $revenue,
+            ];
+        }
+
+        // 8. Payment method breakdown (current month)
+        $paymentBreakdown = Payment::where('status', 'paid')
+            ->whereMonth('paid_at', $now->month)
+            ->whereYear('paid_at', $now->year)
+            ->select('payment_method', DB::raw('count(*) as count'), DB::raw('sum(final_amount) as total'))
+            ->groupBy('payment_method')
+            ->get()
+            ->map(fn ($row) => [
+                'method' => $row->payment_method,
+                'label' => match ($row->payment_method) {
+                    'cash' => 'Tiền mặt',
+                    'transfer' => 'Chuyển khoản',
+                    'card' => 'Thẻ POS',
+                    default => $row->payment_method,
+                },
+                'count' => (int) $row->count,
+                'total' => (int) $row->total,
+            ]);
+
+        // 9. Member growth (last 6 months)
+        $memberGrowth = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = $now->copy()->subMonths($i);
+            $count = Member::whereMonth('created_at', $date->month)
+                ->whereYear('created_at', $date->year)
+                ->count();
+
+            $memberGrowth[] = [
+                'label' => $date->locale('vi')->isoFormat('MMM'),
+                'month' => $date->format('Y-m'),
+                'count' => $count,
+            ];
+        }
+
+        // 10. Recent check-ins
+        $recentCheckIns = CheckIn::with('member')
+            ->orderBy('checked_in_at', 'desc')
+            ->limit(8)
+            ->get()
+            ->map(fn ($checkIn) => [
+                'id' => $checkIn->id,
+                'member_name' => $checkIn->member?->full_name ?? '—',
+                'member_code' => $checkIn->member?->member_code ?? '—',
+                'method' => $checkIn->method,
+                'checked_in_at' => $checkIn->checked_in_at->toIso8601String(),
+            ]);
+
         return response()->json([
             'stats' => [
                 'active_members' => [
@@ -122,7 +185,11 @@ class DashboardController extends Controller
                 ]
             ],
             'checkin_activity' => $checkinActivity,
-            'popular_packages' => $formattedPopular
+            'popular_packages' => $formattedPopular,
+            'revenue_trend' => $revenueTrend,
+            'payment_breakdown' => $paymentBreakdown,
+            'member_growth' => $memberGrowth,
+            'recent_checkins' => $recentCheckIns,
         ]);
     }
 

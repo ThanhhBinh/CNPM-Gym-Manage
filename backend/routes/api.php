@@ -10,8 +10,9 @@ use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\MemberPackageController;
 use App\Http\Controllers\Api\CheckInController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ReportController;
 
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/login', [AuthController::class, 'login'])->name('login');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -19,8 +20,13 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Dashboard Stats
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+
+    // Reports (admin only)
+    Route::get('/reports', [ReportController::class, 'index'])->middleware('role:admin');
     
-    // Members
+    // QR code for member
+    Route::get('/members/{member}/qr', [MemberController::class, 'qr'])->withoutMiddleware(['auth:sanctum']);
+    // Existing members routes
     Route::apiResource('members', MemberController::class);
     Route::patch('/members/{member}/lock', [MemberController::class, 'lock'])->middleware('role:admin');
     Route::patch('/members/{member}/unlock', [MemberController::class, 'unlock'])->middleware('role:admin');
@@ -38,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Check-in
     Route::post('/check-ins/scan', [CheckInController::class, 'scanQr']);
     Route::post('/check-ins/manual', [CheckInController::class, 'manual']);
+    Route::get('/check-ins/calendar', [CheckInController::class, 'calendar']);
     Route::get('/check-ins', [CheckInController::class, 'index']);
 
     // Payments
